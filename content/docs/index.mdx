@@ -1,0 +1,68 @@
+---
+title: Project Setup
+---
+
+import { Step, Steps } from "fumadocs-ui/components/steps";
+
+In this session, we'll build a chat-based AI agent with the AI SDK. The agent will be able to search the web, run commands in a cloud sandbox, and maintain persistent memory across conversations.
+
+Let's start by setting up our project.
+
+<Steps>
+<Step>
+Deploy this template.
+
+<a href="https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fnicoalbanese%2Faie-london-starter" target="_blank" rel="noopener noreferrer">
+  <img src="https://vercel.com/button" alt="Deploy with Vercel" />
+</a>
+</Step>
+<Step>
+Clone the new project's repository locally.
+
+```bash
+git clone https://github.com/your-username/aie-london-starter.git
+cd aie-london-starter
+```
+
+</Step>
+<Step>
+Install the Vercel CLI globally.
+
+```bash
+npm i -g vercel
+```
+
+</Step>
+<Step>
+Link to your Vercel project.
+
+```bash
+vercel link
+```
+
+</Step>
+<Step>
+Pull environment variables from Vercel.
+
+```bash
+vercel env pull
+```
+
+</Step>
+<Step>
+Install dependencies.
+
+```bash
+pnpm install
+```
+
+</Step>
+<Step>
+Start the development server.
+
+```bash
+pnpm dev
+```
+
+</Step>
+</Steps>

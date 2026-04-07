@@ -1,0 +1,14 @@
+{
+  "title": "Name of Folder",
+  "pages": [
+    "---Welcome---",
+    "index",
+    "---Build---",
+    "chat-agent",
+    "web-search",
+    "sandbox",
+    "memory",
+    "---Next Steps---",
+    "next-steps"
+  ]
+}
