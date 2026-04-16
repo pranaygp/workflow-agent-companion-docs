@@ -1,0 +1,173 @@
+---
+title: Durable Agent
+description: Migrate to the Workflow SDK for durability
+---
+
+import { Step, Steps } from "fumadocs-ui/components/steps";
+import { Callout } from "fumadocs-ui/components/callout";
+
+Now let's fix the timeout problem by migrating our agent to the Workflow SDK. The migration is surprisingly small — same sandbox, same tools, same instructions. We just swap the agent class and wire up the workflow runtime.
+
+<Steps>
+
+<Step>
+Install the Workflow packages.
+
+```bash
+pnpm add workflow @workflow/ai
+```
+
+</Step>
+
+<Step>
+Wrap your Next.js config with `withWorkflow`. This sets up the necessary build plugins and API routes for Workflow to function.
+
+```ts title="next.config.ts"
+import { withWorkflow } from "workflow/next"; // [!code highlight]
+import type { NextConfig } from "next";
+
+const nextConfig: NextConfig = {
+  /* config options here */
+};
+
+export default withWorkflow(nextConfig); // [!code highlight]
+```
+
+</Step>
+
+<Step>
+Update `lib/agent.ts` to use a workflow function with `DurableAgent` instead of `ToolLoopAgent`. The changes are minimal — notice how the sandbox setup, tools, and `getInstructions` helper stay exactly the same.
+
+The key differences:
+- `runAgent` becomes `myAgentWorkflow` with a `"use workflow"` directive
+- `ToolLoopAgent` becomes `DurableAgent`
+- Instead of returning `result.toUIMessageStream()`, we stream to a `writable` provided by the workflow runtime
+
+```ts title="lib/agent.ts"
+import { openai } from "@ai-sdk/openai";
+import { convertToModelMessages, UIMessageChunk, type UIMessage } from "ai"; // [!code highlight]
+import { bash } from "./tools";
+import { Sandbox } from "@vercel/sandbox";
+import { z } from "zod";
+import { createOrGetSandbox } from "@/lib/sandbox";
+import { getWritable } from "workflow"; // [!code highlight]
+import { DurableAgent, InferDurableAgentUIMessage } from "@workflow/ai/agent"; // [!code highlight]
+
+const sandboxName = "new-sandbox";
+
+export const agentContextSchema = z.object({
+  sandbox: z.instanceof(Sandbox),
+});
+
+export type AgentContext = z.infer<typeof agentContextSchema>;
+
+const tools = {
+  webSearch: openai.tools.webSearch(),
+  bash,
+} as const;
+
+export async function myAgentWorkflow(messages: UIMessage[]) { // [!code highlight]
+  "use workflow"; // [!code highlight]
+
+  const modelMessages = await convertToModelMessages(messages);
+
+  const sandbox = await createOrGetSandbox(sandboxName);
+
+  const myAgent = new DurableAgent({ // [!code highlight]
+    model: "openai/gpt-5.3-chat",
+    tools,
+    experimental_context: agentContextSchema.parse({
+      sandbox: sandbox,
+    }),
+    instructions: await getInstructions(sandbox)
+  });
+
+  const result = await myAgent.stream({ // [!code highlight]
+    messages: modelMessages,
+    writable: getWritable<UIMessageChunk>(), // [!code highlight]
+  });
+
+  return { messages: result.messages }; // [!code highlight]
+}
+
+async function getInstructions(sandbox: Sandbox) {
+  const buffer = await sandbox.readFileToBuffer({
+    path: "memories.md",
+  });
+  const memories = buffer ? new TextDecoder().decode(buffer) : null;
+
+  return [
+    "You are a coding agent with access to a computer via the bash tool.",
+    "You have a memories.md file that you can read and write to for persisting important information across conversations.",
+    "Must use python3 instead of python",
+    "",
+    memories
+      ? `## Current memories\n\n${memories}`
+      : "No memories yet. Start by asking the user their name!",
+    "",
+    "## When to save to memories.md",
+    "Save information that would be useful in future conversations, such as:",
+    "- User preferences (coding style, tools, frameworks they prefer)",
+    "- Project context (goals, constraints, architecture decisions)",
+    "- Important facts the user shares about themselves or their work",
+    "- Corrections or feedback the user gives you about your behavior",
+    "",
+    "Do NOT save trivial interactions like greetings, small talk, or information that can be derived from the codebase itself.",
+    "",
+    "## Getting to know the user",
+    "You should proactively ask the user questions to learn about them and build up your memories.",
+    "Ask one question at a time. Always save useful answers to memories.md.",
+    "Even when the user sends a simple greeting, respond warmly AND ask a question.",
+    "",
+    "Start with the basics and progress to more specific topics over time:",
+    "1. First, learn their name",
+    "2. Then, what they do / their role",
+    "3. Then, what they're working on",
+    "4. Then, their experience level, preferred tools, coding style, etc.",
+    "",
+    "Check your current memories to see what you already know and ask about something you don't know yet.",
+  ].join("\n");
+}
+
+export type MyAgentUIMessage = InferDurableAgentUIMessage<DurableAgent<typeof tools>> // [!code highlight]
+```
+
+</Step>
+
+<Step>
+Update the route handler to start a workflow instead of calling `runAgent` directly. The `start()` function kicks off the workflow in the background and returns a readable stream.
+
+```ts title="app/api/chat/route.ts"
+import { createUIMessageStreamResponse, UIMessage } from "ai";
+import { myAgentWorkflow } from "@/lib/agent"; // [!code highlight]
+import { start } from "workflow/api"; // [!code highlight]
+
+export const maxDuration = 10;
+
+export const POST = async (req: Request) => {
+  const { messages }: { messages: UIMessage[] } = await req.json();
+
+  const run = await start(myAgentWorkflow, [messages]) // [!code highlight]
+
+  return createUIMessageStreamResponse({
+    stream: run.readable, // [!code highlight]
+  });
+};
+```
+
+</Step>
+
+<Step>
+Deploy again and try the same "count for 20 seconds in bash" prompt.
+
+```bash
+vercel
+```
+
+You'll notice the same thing happens from the user's perspective — the stream still cuts off when the function times out. **But here's what's different**: go to your Vercel dashboard and check the logs. You'll see the workflow is still running in the background, completing the agent's task even after the HTTP response ended.
+
+This is a fully durable background agent — we just need to reconnect the client to its stream. That's what we'll do next.
+
+</Step>
+
+</Steps>

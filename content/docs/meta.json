@@ -4,10 +4,10 @@
     "---Welcome---",
     "index",
     "---Build---",
-    "chat-agent",
-    "web-search",
-    "sandbox",
-    "memory",
+    "the-problem",
+    "durable-agent",
+    "resumable-streams",
+    "sleep-tool",
     "---Next Steps---",
     "next-steps"
   ]

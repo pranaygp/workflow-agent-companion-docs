@@ -11,21 +11,15 @@ export const baseOptions: BaseLayoutProps = {
   searchToggle: { enabled: false },
   nav: {
     title: (
-      <div className="flex flex-col pl-2">
-        <div className="text-xl">
-          <div
-            data-zone="same"
-            className="text-current hidden md:flex items-center gap-1 py-0.5 transition-opacity hover:text-current hover:opacity-80 font-semibold tracking-[-0.04em]"
-          >
-            Vercel Ship
-            <div className="border border-current flex items-center justify-center size-6 rounded-sm">
-              <div className="text-current font-semibold tracking-[-0.08em] text-[14px]">
-                25
-              </div>
-            </div>
-          </div>
+      <div className="flex flex-col pl-2 mt-1">
+        <img
+          src="/workflow-mark.svg"
+          alt="Workflow"
+          className="h-4 w-auto self-start dark:invert"
+        />
+        <div className="text-zinc-700 dark:text-zinc-300 text-xs mt-2">
+          Durable Agents Workshop
         </div>
-        <div className="text-zinc-700 dark:text-zinc-300">Agents Workshop</div>
       </div>
     ),
   },

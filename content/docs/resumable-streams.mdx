@@ -1,0 +1,109 @@
+---
+title: Resumable Streams
+description: Reconnect to a running workflow's stream
+---
+
+import { Step, Steps } from "fumadocs-ui/components/steps";
+import { Callout } from "fumadocs-ui/components/callout";
+
+The agent is now durable — it keeps running in the background even after the HTTP request ends. But the client doesn't know how to reconnect. Let's fix that by making the stream resumable. No database or Redis needed — Workflow handles it all.
+
+<Steps>
+
+<Step>
+Update the POST route to return the workflow run ID in a response header. The client transport will use this to reconnect.
+
+```ts title="app/api/chat/route.ts"
+import { createUIMessageStreamResponse, UIMessage } from "ai";
+import { myAgentWorkflow } from "@/lib/agent";
+import { start } from "workflow/api";
+
+export const maxDuration = 10;
+
+export const POST = async (req: Request) => {
+  const { messages }: { messages: UIMessage[] } = await req.json();
+
+  const run = await start(myAgentWorkflow, [messages])
+
+  return createUIMessageStreamResponse({
+    stream: run.readable,
+    headers: { // [!code highlight]
+      "x-workflow-run-id": run.runId, // [!code highlight]
+    } // [!code highlight]
+  });
+};
+```
+
+</Step>
+
+<Step>
+Create a new API route that lets the client reconnect to a running workflow's stream. The `getRun` function retrieves the workflow run by ID, and `getReadable` returns a stream starting from a given index — so the client picks up exactly where it left off.
+
+```ts title="app/api/chat/[id]/stream/route.ts"
+import { createUIMessageStreamResponse } from "ai";
+import { getRun } from "workflow/api"; // [!code highlight]
+
+export async function GET(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
+  const { searchParams } = new URL(request.url);
+
+  const startIndexParam = searchParams.get("startIndex");
+  const startIndex = startIndexParam
+    ? parseInt(startIndexParam, 10)
+    : undefined;
+
+  const run = getRun(id); // [!code highlight]
+  const readable = run.getReadable({ startIndex }); // [!code highlight]
+
+  return createUIMessageStreamResponse({
+    stream: readable,
+  });
+}
+```
+
+</Step>
+
+<Step>
+On the client, swap in `WorkflowChatTransport` from `@workflow/ai`. This transport automatically handles reconnection — when the initial POST request ends, it reads the `x-workflow-run-id` header and reconnects to the stream endpoint to resume where it left off.
+
+```tsx title="app/page.tsx"
+"use client";
+
+import { useChat } from "@ai-sdk/react";
+import { useState } from "react";
+import { WorkflowChatTransport } from "@workflow/ai"; // [!code highlight]
+import { MyAgentUIMessage } from "@/lib/agent";
+
+export default function Chat() {
+  const [input, setInput] = useState("");
+
+  const { messages, error, sendMessage } = useChat<MyAgentUIMessage>({
+    transport: new WorkflowChatTransport() // [!code highlight]
+  });
+
+  if (error) return <div>{error.message}</div>;
+
+  // ... rest of the component stays the same
+```
+
+Only the top of the file changes — the rest of the chat UI (message rendering, form, etc.) stays exactly the same.
+
+</Step>
+
+<Step>
+Deploy and test again.
+
+```bash
+vercel
+```
+
+This time, ask the agent "count for 20 seconds in bash" again. When the initial request times out, you'll see the client automatically reconnect and the stream resume seamlessly. The agent's full response arrives even though no single HTTP request lasted the entire duration.
+
+**No database. No Redis. No polling.** The `WorkflowChatTransport` handles everything — it reads the run ID from the response header, tracks the stream position, and reconnects to the `/api/chat/[id]/stream` endpoint when needed.
+
+</Step>
+
+</Steps>

@@ -1,0 +1,60 @@
+---
+title: The Problem
+description: Why agents need durability
+---
+
+import { Step, Steps } from "fumadocs-ui/components/steps";
+import { Callout } from "fumadocs-ui/components/callout";
+
+Our agent works great locally, but what happens when we deploy it? Serverless functions have time limits — and real agents can take a _long_ time. Let's see this in action.
+
+<Steps>
+
+<Step>
+Set a `maxDuration` on the chat route to simulate a realistic deployment timeout. In production, your function will eventually hit its time limit no matter what.
+
+```ts title="app/api/chat/route.ts"
+import { createUIMessageStreamResponse, UIMessage } from "ai";
+import { runAgent } from "@/lib/agent";
+
+export const maxDuration = 10; // [!code highlight]
+
+export const POST = async (req: Request) => {
+  const { messages }: { messages: UIMessage[] } = await req.json();
+
+  const stream = await runAgent(messages);
+
+  return createUIMessageStreamResponse({ stream });
+};
+```
+
+</Step>
+
+<Step>
+Deploy your project to Vercel.
+
+```bash
+vercel
+```
+
+</Step>
+
+<Step>
+Open your deployed app and ask the agent:
+
+> "count for 20 seconds in bash"
+
+You'll see the agent start working, but the request will be terminated before it can finish. The stream just... stops. Check your Vercel logs — you'll see the function timed out.
+
+</Step>
+
+<Step>
+This is the core problem: **serverless functions have time limits, but agents can run for a long time.**
+
+For context, take a look at [this agent harness](https://open-agents.dev/shared/JqlQ1TbehOkm) — it took over 100 minutes for a single turn. That wouldn't be possible on a standard serverless function.
+
+We need a way to let the agent keep running in the background, even after the HTTP request ends. That's exactly what the Workflow SDK gives us.
+
+</Step>
+
+</Steps>

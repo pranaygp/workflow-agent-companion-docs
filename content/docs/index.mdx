@@ -4,7 +4,7 @@ title: Project Setup
 
 import { Step, Steps } from "fumadocs-ui/components/steps";
 
-In this session, we'll build a chat-based AI agent with the AI SDK. The agent will be able to search the web, run commands in a cloud sandbox, and maintain persistent memory across conversations.
+In this session, we'll make an AI agent durable using the Workflow SDK. We're starting from a working agent that can chat, search the web, run commands in a cloud sandbox, and maintain persistent memory — and we'll upgrade it so it can run for hours, survive request timeouts, and resume seamlessly.
 
 Let's start by setting up our project.
 
@@ -12,7 +12,7 @@ Let's start by setting up our project.
 <Step>
 Deploy this template.
 
-<a href="https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fnicoalbanese%2Faie-london-starter" target="_blank" rel="noopener noreferrer">
+<a href="https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fpranaygp%2Fworkflow-agent-starter" target="_blank" rel="noopener noreferrer">
   <img src="https://vercel.com/button" alt="Deploy with Vercel" />
 </a>
 </Step>
@@ -20,8 +20,8 @@ Deploy this template.
 Clone the new project's repository locally.
 
 ```bash
-git clone https://github.com/your-username/aie-london-starter.git
-cd aie-london-starter
+git clone https://github.com/your-username/workflow-agent-starter.git
+cd workflow-agent-starter
 ```
 
 </Step>

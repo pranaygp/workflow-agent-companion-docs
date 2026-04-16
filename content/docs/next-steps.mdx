@@ -3,9 +3,14 @@ title: Next Steps
 description: Where to go from here
 ---
 
-You've built an AI agent that can search the web, run commands in a cloud sandbox, remember context across conversations, and improve itself over time by building reusable scripts.
+You've taken a working AI agent and made it production-ready with the Workflow SDK. Your agent now runs durably in the background, streams are resumable across request boundaries, and it can suspend and resume without consuming compute.
 
-To take things further:
+Here are some ideas to take it further:
 
-- Build durable agents with [Workflow](https://useworkflow.dev/docs/ai) for reliable production deployments with retries, long-running tasks, and complex multi-step orchestration.
-- Add different surfaces to your agent with [Chat SDK](https://chat-sdk.dev) for rich, customizable chat interfaces.
+- **Human-in-the-loop approvals** — Build webhook-based tools where the agent suspends and waits for a human to approve or reject an action before proceeding. This is essential for production agents that take consequential actions. [Learn more](https://workflow-sdk.dev/docs/ai/human-in-the-loop).
+
+- **Shareable & multiplayer chats** — Use `WorkflowChatTransport` options to store the workflow `runId` in URL query params. This lets multiple people watch the same agent run in real time, or share a link to an in-progress conversation. [Docs](https://workflow-sdk.dev/docs/ai/resumable-streams) · [Example](https://github.com/vercel/workflow-examples/blob/b710db9dce1fdb50c06e1300a85439d06639c3f4/flight-booking-app/hooks/use-multi-turn-chat.ts#L149).
+
+- **Chat SDK** — Add rich, customizable chat interfaces across different surfaces with [Chat SDK](https://chat-sdk.dev).
+
+- **Workflow docs** — Explore the full Workflow API including steps, retries, events, and more at [workflow-sdk.dev](https://workflow-sdk.dev).

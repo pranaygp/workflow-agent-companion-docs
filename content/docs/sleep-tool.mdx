@@ -1,0 +1,143 @@
+---
+title: Sleep Tool
+description: Suspend the agent without consuming compute
+---
+
+import { Step, Steps } from "fumadocs-ui/components/steps";
+import { Callout } from "fumadocs-ui/components/callout";
+
+Now that our agent runs durably, let's take advantage of one of Workflow's most powerful features: **suspension**. We'll add a sleep tool that lets the agent pause for any amount of time — without consuming any compute while it waits. The workflow suspends, and resumes exactly where it left off when the time is up.
+
+<Steps>
+
+<Step>
+Create a sleep tool that uses `sleep` from Workflow. Unlike a regular `setTimeout`, this actually suspends the entire workflow — no function is running, no compute is billed.
+
+```ts title="lib/tools.ts"
+import { tool } from "ai";
+import { z } from "zod";
+import { agentContextSchema } from "./agent";
+import { sleep as workflowSleep } from "workflow" // [!code highlight]
+
+export const bash = tool({
+  description: "Run a bash command in the sandbox environment",
+  inputSchema: z.object({
+    command: z.string().describe("The bash command to run"),
+  }),
+  execute: async ({ command }, { experimental_context }) => {
+    const context = agentContextSchema.parse(experimental_context);
+    const result = await context.sandbox.runCommand("bash", ["-lc", command]);
+    return {
+      stdout: await result.stdout(),
+      stderr: await result.stderr(),
+      exitCode: result.exitCode,
+    };
+  },
+});
+
+export const sleep = tool({ // [!code highlight]
+  description: "Sleep for any amount of time", // [!code highlight]
+  inputSchema: z.object({ // [!code highlight]
+    time: z.number().describe("The time to sleep in milliseconds"), // [!code highlight]
+  }), // [!code highlight]
+  execute: async ({ time }) => { // [!code highlight]
+    await workflowSleep(time); // [!code highlight]
+    return { // [!code highlight]
+      status: `Slept for ${time} ms` // [!code highlight]
+    } // [!code highlight]
+  } // [!code highlight]
+}) // [!code highlight]
+```
+
+</Step>
+
+<Step>
+Register the sleep tool on the agent.
+
+```ts title="lib/agent.ts"
+import { bash, sleep } from "./tools"; // [!code highlight]
+
+// ...
+
+const tools = {
+  webSearch: openai.tools.webSearch(),
+  bash,
+  sleep // [!code highlight]
+} as const
+```
+
+</Step>
+
+<Step>
+Add a `tool-sleep` case to the chat UI to show the sleep state. We'll display a spinner while the agent is sleeping and a clock icon when it wakes up.
+
+Add this case to the `switch (p.type)` block in `app/page.tsx`, right after the `tool-bash` case:
+
+```tsx title="app/page.tsx"
+              case "tool-sleep":
+                return (
+                  <div
+                    key={i}
+                    className="flex items-center gap-2 text-sm text-gray-500 py-1"
+                  >
+                    {p.state === "output-available" ? (
+                      <>
+                        <svg
+                          className="size-4"
+                          xmlns="http://www.w3.org/2000/svg"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          strokeWidth={2}
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"
+                          />
+                        </svg>
+                        Slept for {p.input?.time}ms
+                      </>
+                    ) : (
+                      <>
+                        <svg
+                          className="size-4 animate-spin"
+                          xmlns="http://www.w3.org/2000/svg"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                        >
+                          <circle
+                            className="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            strokeWidth="4"
+                          />
+                          <path
+                            className="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                          />
+                        </svg>
+                        Sleeping for {p.input?.time}ms...
+                      </>
+                    )}
+                  </div>
+                );
+```
+
+</Step>
+
+<Step>
+Try it out! Ask the agent something like:
+
+> "sleep for 5 seconds, then tell me a joke"
+
+You'll see the sleep indicator appear, the workflow suspend, and then resume after 5 seconds to deliver the punchline. During the sleep, **zero compute is being consumed** — the workflow is fully suspended.
+
+This pattern is incredibly powerful for real-world agents. Think scheduled checks, rate limiting, waiting for external events, or any scenario where the agent needs to pause and resume later.
+
+</Step>
+
+</Steps>
