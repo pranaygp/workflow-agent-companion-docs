@@ -55,12 +55,15 @@ export const sleep = tool({ // [!code highlight]
 Register the sleep tool on the agent.
 
 ```ts title="lib/agent.ts"
+import { anthropic } from "@ai-sdk/anthropic"; // [!code highlight]
 import { bash, sleep } from "./tools"; // [!code highlight]
 
 // ...
 
 const tools = {
-  webSearch: openai.tools.webSearch(),
+  webSearch: anthropic.tools.webSearch_20250305({
+    maxUses: 5,
+  }),
   bash,
   sleep // [!code highlight]
 } as const
