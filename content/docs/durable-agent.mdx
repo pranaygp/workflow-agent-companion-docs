@@ -42,10 +42,11 @@ The key differences:
 - `runAgent` becomes `myAgentWorkflow` with a `"use workflow"` directive
 - `ToolLoopAgent` becomes `DurableAgent`
 - Instead of returning `result.toUIMessageStream()`, we stream to a `writable` provided by the workflow runtime
+- I/O operations like `getInstructions` and `createOrGetSandbox` get `"use step"` directives so the workflow can checkpoint around them
 
 ```ts title="lib/agent.ts"
 import { openai } from "@ai-sdk/openai";
-import { convertToModelMessages, UIMessageChunk, type UIMessage } from "ai"; // [!code highlight]
+import { convertToModelMessages, InferAgentUIMessage, ToolLoopAgent, UIMessageChunk, type UIMessage } from "ai";
 import { bash } from "./tools";
 import { Sandbox } from "@vercel/sandbox";
 import { z } from "zod";
@@ -72,17 +73,16 @@ export async function myAgentWorkflow(messages: UIMessage[]) { // [!code highlig
   const modelMessages = await convertToModelMessages(messages);
 
   const sandbox = await createOrGetSandbox(sandboxName);
+  const instructions = await getInstructions(sandbox);
 
-  const myAgent = new DurableAgent({ // [!code highlight]
+  const agent = new DurableAgent({ // [!code highlight]
     model: "openai/gpt-5.3-chat",
     tools,
-    experimental_context: agentContextSchema.parse({
-      sandbox: sandbox,
-    }),
-    instructions: await getInstructions(sandbox)
+    experimental_context: agentContextSchema.parse({ sandbox }),
+    instructions,
   });
 
-  const result = await myAgent.stream({ // [!code highlight]
+  const result = await agent.stream({ // [!code highlight]
     messages: modelMessages,
     writable: getWritable<UIMessageChunk>(), // [!code highlight]
   });
@@ -91,6 +91,8 @@ export async function myAgentWorkflow(messages: UIMessage[]) { // [!code highlig
 }
 
 async function getInstructions(sandbox: Sandbox) {
+  "use step"; // [!code highlight]
+
   const buffer = await sandbox.readFileToBuffer({
     path: "memories.md",
   });
@@ -130,6 +132,54 @@ async function getInstructions(sandbox: Sandbox) {
 }
 
 export type MyAgentUIMessage = InferDurableAgentUIMessage<DurableAgent<typeof tools>> // [!code highlight]
+```
+
+</Step>
+
+<Step>
+Add `"use step"` to the sandbox helper and the bash tool's execute function. This tells the workflow runtime to checkpoint around these I/O operations — if the workflow resumes after a crash, it can skip steps that already completed instead of re-executing them.
+
+```ts title="lib/sandbox.ts"
+import { Sandbox } from "@vercel/sandbox";
+
+export const createOrGetSandbox = async (name: string) => {
+  "use step"; // [!code highlight]
+
+  try {
+    const sandbox = await Sandbox.get({ name });
+    return sandbox;
+  } catch {
+    const sandbox = await Sandbox.create({
+      snapshotExpiration: 7 * 24 * 60 * 60 * 1000,
+      timeout: 2700000,
+      name,
+    });
+    return sandbox;
+  }
+};
+```
+
+```ts title="lib/tools.ts"
+import { tool } from "ai";
+import { z } from "zod";
+import { agentContextSchema } from "./agent";
+
+export const bash = tool({
+  description: "Run a bash command in the sandbox environment",
+  inputSchema: z.object({
+    command: z.string().describe("The bash command to run"),
+  }),
+  execute: async ({ command }, { experimental_context }) => {
+    "use step"; // [!code highlight]
+    const context = agentContextSchema.parse(experimental_context);
+    const result = await context.sandbox.runCommand("bash", ["-lc", command]);
+    return {
+      stdout: await result.stdout(),
+      stderr: await result.stderr(),
+      exitCode: result.exitCode,
+    };
+  },
+});
 ```
 
 </Step>

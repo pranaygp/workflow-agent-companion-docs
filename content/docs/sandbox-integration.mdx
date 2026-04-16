@@ -1,0 +1,90 @@
+---
+title: Native Sandbox Integration
+description: Vercel Sandbox works natively with Workflow — no "use step" needed
+---
+
+import { Step, Steps } from "fumadocs-ui/components/steps";
+import { Callout } from "fumadocs-ui/components/callout";
+
+In the previous step, we added `"use step"` directives to our sandbox helper, the bash tool, and the `getInstructions` function. This works — but it turns out we don't actually need most of them.
+
+Vercel Sandbox [natively implements `"use step"` internally](https://github.com/vercel/sandbox/blob/747a6899faf69cb0395e7b6da8c0e3db179ff526/packages/vercel-sandbox/src/sandbox.ts#L395). Every sandbox operation — `Sandbox.get()`, `Sandbox.create()`, `sandbox.runCommand()`, `sandbox.readFileToBuffer()` — is already a workflow step under the hood. This means sandboxes work inside workflows with zero extra configuration.
+
+Because of this, we can remove the `"use step"` directives from our code and simplify things.
+
+<Steps>
+
+<Step>
+Remove `"use step"` from `lib/sandbox.ts`. The `Sandbox.get()` and `Sandbox.create()` calls inside are already workflow steps natively.
+
+```ts title="lib/sandbox.ts"
+import { Sandbox } from "@vercel/sandbox";
+
+export const createOrGetSandbox = async (name: string) => {
+  try {
+    const sandbox = await Sandbox.get({ name });
+    return sandbox;
+  } catch {
+    const sandbox = await Sandbox.create({
+      snapshotExpiration: 7 * 24 * 60 * 60 * 1000,
+      timeout: 2700000,
+      name,
+    });
+    return sandbox;
+  }
+};
+```
+
+</Step>
+
+<Step>
+Remove `"use step"` from the bash tool in `lib/tools.ts`. The `sandbox.runCommand()` call is already a workflow step.
+
+```ts title="lib/tools.ts"
+import { tool } from "ai";
+import { z } from "zod";
+import { agentContextSchema } from "./agent";
+
+export const bash = tool({
+  description: "Run a bash command in the sandbox environment",
+  inputSchema: z.object({
+    command: z.string().describe("The bash command to run"),
+  }),
+  execute: async ({ command }, { experimental_context }) => {
+    const context = agentContextSchema.parse(experimental_context);
+    const result = await context.sandbox.runCommand("bash", ["-lc", command]);
+    return {
+      stdout: await result.stdout(),
+      stderr: await result.stderr(),
+      exitCode: result.exitCode,
+    };
+  },
+});
+```
+
+</Step>
+
+<Step>
+Remove `"use step"` from `getInstructions` in `lib/agent.ts`. The `sandbox.readFileToBuffer()` call inside it is already a workflow step.
+
+```ts title="lib/agent.ts"
+async function getInstructions(sandbox: Sandbox) {
+  const buffer = await sandbox.readFileToBuffer({
+    path: "memories.md",
+  });
+  const memories = buffer ? new TextDecoder().decode(buffer) : null;
+
+  return [
+    "You are a coding agent with access to a computer via the bash tool.",
+    // ... rest of instructions unchanged
+  ].join("\n");
+}
+```
+
+</Step>
+
+</Steps>
+
+<Callout title="When do you need 'use step'?">
+You still need `"use step"` for non-sandbox I/O operations — things like calling external APIs, reading from a database, or any async work that isn't already a native workflow step. The Vercel Sandbox integration just happens to handle this for you automatically.
+</Callout>
