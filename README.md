@@ -3,7 +3,26 @@
 This is a Next.js application generated with
 [Create Fumadocs](https://github.com/fuma-nama/fumadocs).
 
-Run development server:
+## Getting Started
+
+Clone the repository:
+
+```bash
+git clone https://github.com/pranaygp/workflow-agent-companion-docs.git
+cd workflow-agent-companion-docs
+```
+
+Install dependencies:
+
+```bash
+npm install
+# or
+pnpm install
+# or
+yarn install
+```
+
+Then start the development server:
 
 ```bash
 npm run dev
