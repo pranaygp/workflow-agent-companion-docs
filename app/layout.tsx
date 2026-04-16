@@ -16,12 +16,10 @@ export const metadata: Metadata = {
   },
   description: siteConfig.description,
   keywords: ['AI', 'agents', 'AI SDK', 'Workflow SDK', 'durable agents', 'Vercel', 'workshop', 'sandbox', 'resumable streams'],
-  metadataBase: new URL(siteConfig.url),
   applicationName: siteConfig.name,
   openGraph: {
     type: 'website',
     locale: 'en_US',
-    url: siteConfig.url,
     title: siteConfig.name,
     description: siteConfig.description,
     siteName: siteConfig.name,

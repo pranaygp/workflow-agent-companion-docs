@@ -56,7 +56,7 @@ export function SocialImage({ title, subtitle }: SocialImageProps) {
               textTransform: 'uppercase',
             }}
           >
-            AI Engineer London
+            {siteConfig.shortName}
           </div>
         </div>
 
@@ -94,7 +94,6 @@ export function SocialImage({ title, subtitle }: SocialImageProps) {
         <div
           style={{
             display: 'flex',
-            justifyContent: 'space-between',
             alignItems: 'flex-end',
           }}
         >
@@ -120,16 +119,6 @@ export function SocialImage({ title, subtitle }: SocialImageProps) {
                 {item}
               </div>
             ))}
-          </div>
-
-          <div
-            style={{
-              display: 'flex',
-              fontSize: '24px',
-              color: '#94a3b8',
-            }}
-          >
-            {siteConfig.url.replace('https://', '')}
           </div>
         </div>
       </div>
