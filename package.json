@@ -24,6 +24,6 @@
     "@types/mdx": "^2.0.13",
     "@tailwindcss/postcss": "^4.1.10",
     "tailwindcss": "^4.1.10",
-    "postcss": "^8.5.5"
+    "postcss": "^8.5.23"
   }
 }
